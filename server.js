@@ -8,9 +8,10 @@ const app = express();
 
 // Enable CORS
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://localhost'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  origin: ['http://localhost:3000', 'https://rawdahremodeling.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(logger('dev'));
