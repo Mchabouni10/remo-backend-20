@@ -1,11 +1,40 @@
+//model/project.js
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const surfaceSchema = new Schema({
-  width: { type: String, default: '' },
-  height: { type: String, default: '' },
-  sqft: { type: Number, default: 0 },
+  measurementType: {
+    type: String,
+    enum: ['single-surface', 'room-surface', 'linear-foot', 'by-unit'],
+    required: true,
+  },
+  width: { type: Number, min: 0 },
+  height: { type: Number, min: 0 },
+  sqft: { type: Number, min: 0 },
   manualSqft: { type: Boolean, default: false },
+  linearFt: { type: Number, min: 0 },
+  units: { type: Number, min: 0 },
+  length: { type: Number, min: 0 },
+  roomShape: { type: String, enum: ['rectangular', 'other'], default: 'rectangular' },
+  roomHeight: { type: Number, min: 0 },
+  doors: [{
+    size: String,
+    width: Number,
+    height: Number,
+    area: Number,
+  }],
+  windows: [{
+    size: String,
+    width: Number,
+    height: Number,
+    area: Number,
+  }],
+  closets: [{
+    size: String,
+    width: Number,
+    height: Number,
+    area: Number,
+  }],
 });
 
 const workItemSchema = new Schema({
@@ -13,12 +42,33 @@ const workItemSchema = new Schema({
   type: { type: String, required: true },
   subtype: { type: String, default: '' },
   surfaces: [surfaceSchema],
-  linearFt: { type: String, default: '' },
-  units: { type: String, default: '' },
-  basePrice: { type: String, default: '0.00' },
-  materialCost: { type: Number, default: 0 },
-  laborCost: { type: Number, default: 0 },
+  materialCost: { type: Number, default: 0, min: 0 },
+  laborCost: { type: Number, default: 0, min: 0 },
   notes: { type: String, default: '' },
+  unitType: {
+    type: String,
+    enum: ['sqft', 'linear ft', 'units'],
+    default: 'sqft',
+  },
+}, {
+  validate: {
+    validator: function() {
+      const hasValidSurfaces = this.surfaces && this.surfaces.length > 0 && this.surfaces.every(surf => {
+        if (this.materialCost > 0 || this.laborCost > 0) {
+          if (surf.measurementType === 'linear-foot') {
+            return surf.linearFt > 0;
+          } else if (surf.measurementType === 'by-unit') {
+            return surf.units > 0 || surf.sqft > 0;
+          } else {
+            return surf.sqft > 0;
+          }
+        }
+        return true;
+      });
+      return hasValidSurfaces;
+    },
+    message: 'Surfaces must have valid units (linearFt, units, or sqft) when materialCost or laborCost is non-zero',
+  },
 });
 
 const categorySchema = new Schema({
@@ -28,12 +78,12 @@ const categorySchema = new Schema({
 
 const miscFeeSchema = new Schema({
   name: { type: String, required: true },
-  amount: { type: Number, default: 0 },
+  amount: { type: Number, required: true, min: 0 },
 });
 
 const paymentSchema = new Schema({
-  date: { type: Date, default: Date.now },
-  amount: { type: Number, required: true },
+  date: { type: Date, required: true },
+  amount: { type: Number, required: true, min: 0.01 },
   method: {
     type: String,
     enum: ['Credit', 'Debit', 'Check', 'Cash', 'Zelle'],
@@ -41,16 +91,25 @@ const paymentSchema = new Schema({
   },
   note: { type: String, default: '' },
   isPaid: { type: Boolean, default: false },
-});
+  status: {
+    type: String,
+    enum: ['Pending', 'Paid', 'Overdue'],
+    default: 'Pending',
+  },
+}, { timestamps: true });
 
 const settingsSchema = new Schema({
-  taxRate: { type: Number, default: 0 },
-  transportationFee: { type: Number, default: 0 },
-  wasteFactor: { type: Number, default: 0 },
+  taxRate: { type: Number, default: 0, min: 0, max: 1 },
+  transportationFee: { type: Number, default: 0, min: 0 },
+  wasteFactor: { type: Number, default: 0, min: 0, max: 1 },
+  laborDiscount: { type: Number, default: 0, min: 0, max: 1 },
   miscFees: [miscFeeSchema],
-  deposit: { type: Number, default: 0 },
+  deposit: { type: Number, default: 0, min: 0 },
   payments: [paymentSchema],
-  markup: { type: Number, default: 0 },
+  markup: { type: Number, default: 0, min: 0, max: 1 },
+  totalPaid: { type: Number, default: 0, min: 0 },
+  amountDue: { type: Number, default: 0, min: 0 },
+  amountRemaining: { type: Number, default: 0, min: 0 },
 });
 
 const customerInfoSchema = new Schema({
@@ -75,12 +134,12 @@ const customerInfoSchema = new Schema({
 });
 
 const projectSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   customerInfo: customerInfoSchema,
   categories: [categorySchema],
   settings: settingsSchema,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Project', projectSchema);

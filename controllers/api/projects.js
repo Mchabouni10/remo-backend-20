@@ -1,141 +1,123 @@
-const Project = require('../../models/project');
+//controller/api/projects.js
+// controller/api/projects.js
+function calculateCostsAndTotals(categories, settings) {
+  let materialCost = 0;
+  let laborCost = 0;
 
-module.exports = {
-  create,
-  index,
-  show,
-  update,
-  delete: deleteProject,
-};
+  categories.forEach(category => {
+    category.workItems.forEach(item => {
+      const units = getUnits(item);
+      materialCost += (Number(item.materialCost) || 0) * units;
+      laborCost += (Number(item.laborCost) || 0) * units;
+    });
+  });
+
+  const laborDiscountAmount = laborCost * (settings.laborDiscount || 0);
+  const discountedLaborCost = laborCost - laborDiscountAmount;
+  const baseSubtotal = materialCost + discountedLaborCost;
+
+  const wasteCost = baseSubtotal * (settings.wasteFactor || 0);
+  const tax = baseSubtotal * (settings.taxRate || 0);
+  const markupCost = baseSubtotal * (settings.markup || 0);
+  const miscFeesTotal = (settings.miscFees || []).reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+  const transportationFee = settings.transportationFee || 0;
+
+  const total = baseSubtotal + wasteCost + tax + markupCost + miscFeesTotal + transportationFee;
+
+  return {
+    total,
+    materialCost,
+    laborCost,
+    discountedLaborCost,
+    laborDiscountAmount, // Include in return
+    wasteCost,
+    tax,
+    markupCost,
+    miscFeesTotal,
+    transportationFee,
+    baseSubtotal,
+  };
+}
 
 async function create(req, res) {
   try {
-    const payments = (req.body.settings?.payments || []).map(payment => {
-      const date = new Date(payment.date);
-      if (isNaN(date.getTime())) throw new Error(`Invalid payment date: ${payment.date}`);
-      return {
-        date: date,
-        amount: Number(payment.amount),
-        method: payment.method || 'Cash',
-        note: payment.note || '',
-        isPaid: Boolean(payment.isPaid),
-      };
-    });
+    const { customerInfo, categories = [], settings = {} } = req.body;
+
+    console.log('Received settings:', settings); // Debug log
+
+    const deposit = Number(settings.deposit) || 0;
+    const { parsed: payments, totalPaid, amountDue } = parsePayments(settings.payments, deposit);
+
+    const costs = calculateCostsAndTotals(categories, settings);
+    if (isNaN(costs.total) || isNaN(totalPaid)) {
+      throw new Error(`Invalid cost calculations`);
+    }
 
     const projectData = {
       userId: req.user._id,
-      customerInfo: req.body.customerInfo,
-      categories: req.body.categories || [],
+      customerInfo,
+      categories,
       settings: {
-        taxRate: Number(req.body.settings?.taxRate) || 0,
-        transportationFee: Number(req.body.settings?.transportationFee) || 0,
-        wasteFactor: Number(req.body.settings?.wasteFactor) || 0,
-        miscFees: req.body.settings?.miscFees || [],
-        deposit: Number(req.body.settings?.deposit) || 0,
-        payments: payments,
-        markup: Number(req.body.settings?.markup) || 0,
+        ...settings,
+        deposit,
+        payments,
+        totalPaid,
+        amountDue,
+        amountRemaining: Math.max(0, costs.total - totalPaid),
+        laborDiscountAmount: costs.laborDiscountAmount, // Store calculated value
+        discountedLaborCost: costs.discountedLaborCost, // Store calculated value
       },
     };
-    console.log('Creating project with data:', JSON.stringify(projectData, null, 2));
-    const project = new Project(projectData);
-    await project.save();
-    console.log('Created project:', JSON.stringify(project, null, 2));
+
+    const project = await new Project(projectData).save();
+    console.log('Project created:', project._id);
     res.json(project);
   } catch (err) {
-    console.error('Error creating project:', err);
+    console.error('Error in create():', err);
     res.status(400).json({ error: err.message || 'Bad request' });
-  }
-}
-
-async function index(req, res) {
-  try {
-    const projects = await Project.find({ userId: req.user._id }).sort('-createdAt');
-    console.log('Fetched projects:', projects.length);
-    res.json(projects);
-  } catch (err) {
-    console.error('Error fetching projects:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-}
-
-async function show(req, res) {
-  try {
-    const project = await Project.findOne({ _id: req.params.id, userId: req.user._id });
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    console.log('Fetched project:', JSON.stringify(project, null, 2));
-    res.json(project);
-  } catch (err) {
-    console.error('Error fetching project:', err);
-    res.status(500).json({ error: 'Server error' });
   }
 }
 
 async function update(req, res) {
   try {
-    console.log('Raw request body:', JSON.stringify(req.body, null, 2));
+    const { customerInfo, categories = [], settings = {} } = req.body;
 
-    const payments = (req.body.settings?.payments || []).map(payment => {
-      const date = new Date(payment.date);
-      if (isNaN(date.getTime())) throw new Error(`Invalid payment date: ${payment.date}`);
-      return {
-        date: date,
-        amount: Number(payment.amount),
-        method: payment.method || 'Cash',
-        note: payment.note || '',
-        isPaid: Boolean(payment.isPaid),
-      };
-    });
+    console.log('Received settings for update:', settings); // Debug log
+
+    const deposit = Number(settings.deposit) || 0;
+    const { parsed: payments, totalPaid, amountDue } = parsePayments(settings.payments, deposit);
+
+    const costs = calculateCostsAndTotals(categories, settings);
+    if (isNaN(costs.total) || isNaN(totalPaid)) {
+      throw new Error(`Invalid cost calculations`);
+    }
 
     const updatedData = {
-      customerInfo: req.body.customerInfo,
-      categories: req.body.categories || [],
+      customerInfo,
+      categories,
       settings: {
-        taxRate: Number(req.body.settings?.taxRate) || 0,
-        transportationFee: Number(req.body.settings?.transportationFee) || 0,
-        wasteFactor: Number(req.body.settings?.wasteFactor) || 0,
-        miscFees: req.body.settings?.miscFees || [],
-        deposit: Number(req.body.settings?.deposit) || 0,
-        payments: payments,
-        markup: Number(req.body.settings?.markup) || 0,
+        ...settings,
+        deposit,
+        payments,
+        totalPaid,
+        amountDue,
+        amountRemaining: Math.max(0, costs.total - totalPaid),
+        laborDiscountAmount: costs.laborDiscountAmount, // Store calculated value
+        discountedLaborCost: costs.discountedLaborCost, // Store calculated value
       },
       updatedAt: Date.now(),
     };
-    console.log('Processed update data:', JSON.stringify(updatedData, null, 2));
 
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, userId: req.user._id },
-      {
-        $set: {
-          customerInfo: updatedData.customerInfo,
-          categories: updatedData.categories,
-          settings: updatedData.settings,
-          updatedAt: updatedData.updatedAt,
-        },
-        $unset: { 'settings.amountPaid': '' },
-      },
+      { $set: updatedData },
       { new: true, runValidators: true }
     );
 
-    if (!project) {
-      console.log('Project not found:', req.params.id);
-      return res.status(404).json({ error: 'Project not found' });
-    }
-    console.log('Saved project:', JSON.stringify(project, null, 2));
+    if (!project) return res.status(404).json({ error: 'Project not found' });
     res.json(project);
   } catch (err) {
-    console.error('Error updating project:', err);
+    console.error('Error in update():', err);
     res.status(400).json({ error: err.message || 'Bad request' });
-  }
-}
-
-async function deleteProject(req, res) {
-  try {
-    const project = await Project.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    console.log('Deleted project:', req.params.id);
-    res.json({ message: 'Project deleted' });
-  } catch (err) {
-    console.error('Error deleting project:', err);
-    res.status(500).json({ error: 'Server error' });
   }
 }
