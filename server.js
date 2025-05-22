@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config(); // For local development with .env file
 require('./config/database');
 const express = require('express');
 const logger = require('morgan');
@@ -6,17 +6,18 @@ const cors = require('cors');
 const port = process.env.PORT || 3001;
 const app = express();
 
-// Optimized CORS
+// Optimized CORS configuration
 app.use(cors({
   origin: [
-    /^https?:\/\/localhost(:\d+)?$/, // All localhost variants
+    /^https?:\/\/localhost(:\d+)?$/, // Allow localhost for development
+    'https://my-frontend.onrender.com' // Replace with your actual frontend URL
+    // Add more origins as needed, e.g., 'https://another-frontend.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Rest of your code remains unchanged
 app.use(logger('dev'));
 app.use(express.json());
 app.use(require('./config/checkToken'));
