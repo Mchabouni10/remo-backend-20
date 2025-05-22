@@ -86,7 +86,7 @@ const paymentSchema = new Schema({
   amount: { type: Number, required: true, min: 0.01 },
   method: {
     type: String,
-    enum: ['Credit', 'Debit', 'Check', 'Cash', 'Zelle'],
+    enum: ['Credit', 'Debit', 'Check', 'Cash', 'Zelle', 'Deposit'],
     default: 'Cash',
   },
   note: { type: String, default: '' },
@@ -105,7 +105,22 @@ const settingsSchema = new Schema({
   laborDiscount: { type: Number, default: 0, min: 0, max: 1 },
   miscFees: [miscFeeSchema],
   deposit: { type: Number, default: 0, min: 0 },
-  payments: [paymentSchema],
+  depositMethod: {
+    type: String,
+    enum: ['Credit', 'Debit', 'Check', 'Cash', 'Zelle', 'Deposit'],
+    default: 'Cash',
+  },
+  payments: {
+    type: [paymentSchema],
+    validate: {
+      validator: function(payments) {
+        return payments.every(p => 
+          ['Credit', 'Debit', 'Check', 'Cash', 'Zelle', 'Deposit'].includes(p.method)
+        );
+      },
+      message: 'Invalid payment method in payments array',
+    },
+  },
   markup: { type: Number, default: 0, min: 0, max: 1 },
   totalPaid: { type: Number, default: 0, min: 0 },
   amountDue: { type: Number, default: 0, min: 0 },
@@ -125,7 +140,7 @@ const customerInfoSchema = new Schema({
   type: { type: String, enum: ['Residential', 'Commercial'], default: 'Residential' },
   paymentType: {
     type: String,
-    enum: ['Credit', 'Debit', 'Check', 'Cash', 'Zelle'],
+    enum: ['Credit', 'Debit', 'Check', 'Cash', 'Zelle', 'Deposit'],
     default: 'Cash',
   },
   startDate: { type: Date, required: true },
@@ -141,5 +156,6 @@ const projectSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
+
 
 module.exports = mongoose.model('Project', projectSchema);
