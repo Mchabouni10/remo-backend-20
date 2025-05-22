@@ -10,6 +10,7 @@ const app = express();
 app.use(cors({
   origin: [
     /^https?:\/\/localhost(:\d+)?$/, // Allow localhost for development
+    'http://localhost:3000', // Allow React app on localhost
     'https://my-frontend.onrender.com' // Replace with your actual frontend URL
     // Add more origins as needed, e.g., 'https://another-frontend.com'
   ],
