@@ -1,12 +1,14 @@
 //controller/api/projects.js
-// controller/api/projects.js
+// controllers/api/projects.js
+const Project = require('../../models/project'); // Ensure this path is correct
+
 function calculateCostsAndTotals(categories, settings) {
   let materialCost = 0;
   let laborCost = 0;
 
   categories.forEach(category => {
     category.workItems.forEach(item => {
-      const units = getUnits(item);
+      const units = getUnits(item); // Ensure getUnits is defined
       materialCost += (Number(item.materialCost) || 0) * units;
       laborCost += (Number(item.laborCost) || 0) * units;
     });
@@ -29,7 +31,7 @@ function calculateCostsAndTotals(categories, settings) {
     materialCost,
     laborCost,
     discountedLaborCost,
-    laborDiscountAmount, // Include in return
+    laborDiscountAmount,
     wasteCost,
     tax,
     markupCost,
@@ -37,6 +39,15 @@ function calculateCostsAndTotals(categories, settings) {
     transportationFee,
     baseSubtotal,
   };
+}
+
+// Missing parsePayments function (you need to define it)
+function parsePayments(payments, deposit) {
+  // Placeholder implementation based on typical use case
+  const parsed = payments || [];
+  const totalPaid = parsed.reduce((sum, p) => sum + (p.isPaid ? Number(p.amount) || 0 : 0), 0);
+  const amountDue = deposit - totalPaid;
+  return { parsed, totalPaid, amountDue };
 }
 
 async function create(req, res) {
@@ -64,8 +75,8 @@ async function create(req, res) {
         totalPaid,
         amountDue,
         amountRemaining: Math.max(0, costs.total - totalPaid),
-        laborDiscountAmount: costs.laborDiscountAmount, // Store calculated value
-        discountedLaborCost: costs.discountedLaborCost, // Store calculated value
+        laborDiscountAmount: costs.laborDiscountAmount,
+        discountedLaborCost: costs.discountedLaborCost,
       },
     };
 
@@ -74,6 +85,27 @@ async function create(req, res) {
     res.json(project);
   } catch (err) {
     console.error('Error in create():', err);
+    res.status(400).json({ error: err.message || 'Bad request' });
+  }
+}
+
+async function index(req, res) {
+  try {
+    const projects = await Project.find({ userId: req.user._id });
+    res.json(projects);
+  } catch (err) {
+    console.error('Error in index():', err);
+    res.status(400).json({ error: err.message || 'Bad request' });
+  }
+}
+
+async function show(req, res) {
+  try {
+    const project = await Project.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json(project);
+  } catch (err) {
+    console.error('Error in show():', err);
     res.status(400).json({ error: err.message || 'Bad request' });
   }
 }
@@ -102,8 +134,8 @@ async function update(req, res) {
         totalPaid,
         amountDue,
         amountRemaining: Math.max(0, costs.total - totalPaid),
-        laborDiscountAmount: costs.laborDiscountAmount, // Store calculated value
-        discountedLaborCost: costs.discountedLaborCost, // Store calculated value
+        laborDiscountAmount: costs.laborDiscountAmount,
+        discountedLaborCost: costs.discountedLaborCost,
       },
       updatedAt: Date.now(),
     };
@@ -121,3 +153,23 @@ async function update(req, res) {
     res.status(400).json({ error: err.message || 'Bad request' });
   }
 }
+
+async function deleteProject(req, res) {
+  try {
+    const project = await Project.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json({ message: 'Project deleted' });
+  } catch (err) {
+    console.error('Error in delete():', err);
+    res.status(400).json({ error: err.message || 'Bad request' });
+  }
+}
+
+// Export all controller functions
+module.exports = {
+  create,
+  index,
+  show,
+  update,
+  delete: deleteProject,
+};
