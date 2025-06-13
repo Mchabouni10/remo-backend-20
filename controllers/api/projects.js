@@ -1,9 +1,3 @@
-//controller/api/projects.js
-<<<<<<< HEAD
-// controllers/api/projects.js
-const Project = require('../../models/project'); // Ensure this path is correct
-=======
-//controller/api/projects.js
 const Project = require('../../models/project');
 
 function getUnits(item) {
@@ -96,21 +90,14 @@ function parsePayments(payments = [], deposit = 0, depositMethod = 'Deposit') {
   const amountDue = parsed.reduce((sum, p) => sum + (!p.isPaid ? p.amount : 0), 0);
   return { parsed, totalPaid, amountDue };
 }
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
 
 function calculateCostsAndTotals(categories, settings) {
   let materialCost = 0;
   let laborCost = 0;
 
-<<<<<<< HEAD
-  categories.forEach(category => {
-    category.workItems.forEach(item => {
-      const units = getUnits(item); // Ensure getUnits is defined
-=======
   categories.forEach((category) => {
     category.workItems.forEach((item) => {
       const units = getUnits(item);
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
       materialCost += (Number(item.materialCost) || 0) * units;
       laborCost += (Number(item.laborCost) || 0) * units;
     });
@@ -133,10 +120,7 @@ function calculateCostsAndTotals(categories, settings) {
     materialCost,
     laborCost,
     discountedLaborCost,
-<<<<<<< HEAD
     laborDiscountAmount,
-=======
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
     wasteCost,
     tax,
     markupCost,
@@ -144,15 +128,6 @@ function calculateCostsAndTotals(categories, settings) {
     transportationFee,
     baseSubtotal,
   };
-}
-
-// Missing parsePayments function (you need to define it)
-function parsePayments(payments, deposit) {
-  // Placeholder implementation based on typical use case
-  const parsed = payments || [];
-  const totalPaid = parsed.reduce((sum, p) => sum + (p.isPaid ? Number(p.amount) || 0 : 0), 0);
-  const amountDue = deposit - totalPaid;
-  return { parsed, totalPaid, amountDue };
 }
 
 async function create(req, res) {
@@ -186,11 +161,8 @@ async function create(req, res) {
         totalPaid,
         amountDue,
         amountRemaining: Math.max(0, costs.total - totalPaid),
-<<<<<<< HEAD
         laborDiscountAmount: costs.laborDiscountAmount,
         discountedLaborCost: costs.discountedLaborCost,
-=======
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
       },
     };
 
@@ -233,27 +205,6 @@ async function show(req, res) {
   }
 }
 
-async function index(req, res) {
-  try {
-    const projects = await Project.find({ userId: req.user._id });
-    res.json(projects);
-  } catch (err) {
-    console.error('Error in index():', err);
-    res.status(400).json({ error: err.message || 'Bad request' });
-  }
-}
-
-async function show(req, res) {
-  try {
-    const project = await Project.findOne({ _id: req.params.id, userId: req.user._id });
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    res.json(project);
-  } catch (err) {
-    console.error('Error in show():', err);
-    res.status(400).json({ error: err.message || 'Bad request' });
-  }
-}
-
 async function update(req, res) {
   try {
     const { customerInfo, categories = [], settings = {} } = req.body;
@@ -284,11 +235,8 @@ async function update(req, res) {
         totalPaid,
         amountDue,
         amountRemaining: Math.max(0, costs.total - totalPaid),
-<<<<<<< HEAD
         laborDiscountAmount: costs.laborDiscountAmount,
         discountedLaborCost: costs.discountedLaborCost,
-=======
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
       },
       updatedAt: Date.now(),
     };
@@ -326,28 +274,15 @@ async function deleteProject(req, res) {
     if (!project) return res.status(404).json({ error: 'Project not found' });
     res.json({ message: 'Project deleted' });
   } catch (err) {
-<<<<<<< HEAD
-    console.error('Error in delete():', err);
-    res.status(400).json({ error: err.message || 'Bad request' });
-  }
-}
-
-// Export all controller functions
-=======
     console.error('deleteProject error:', err);
     res.status(500).json({ error: 'Server error', details: err.message });
   }
 }
 
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
 module.exports = {
   create,
   index,
   show,
   update,
   delete: deleteProject,
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 1eb2f266287db9b4f4fe50be7d82f806fcc4386a
