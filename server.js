@@ -4,7 +4,7 @@ const cors = require('cors');
 const port = process.env.PORT || 3001;
 const app = express();
 
-// CORS middleware first
+// CORS middleware - place this BEFORE other middleware
 app.use(cors({
   origin: [
     'https://remofrontend22.vercel.app',
@@ -13,8 +13,12 @@ app.use(cors({
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
 
 // Other middleware
 app.use(logger('dev'));
