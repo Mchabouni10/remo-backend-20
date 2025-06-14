@@ -6,22 +6,25 @@ const cors = require('cors');
 const port = process.env.PORT || 3001;
 const app = express();
 
-// CORS configuration
-app.use(cors({
+// CORS configuration - MOVED BEFORE OTHER MIDDLEWARE
+const corsOptions = {
   origin: [
     'https://remofrontend22.vercel.app', // Your Vercel frontend
-    'http://localhost:3000',          // Explicitly added for clarity
-    /^https?:\/\/localhost(:\d+)?$/,   // All localhost variants for local development
+    'http://localhost:3000',             // Local development
+    /^https?:\/\/localhost(:\d+)?$/,     // All localhost variants
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 200 // For legacy browser support
+};
 
-// Handle preflight requests explicitly
-app.options('*', cors());
+app.use(cors(corsOptions));
 
-// Middleware
+// Handle preflight requests explicitly for all routes
+app.options('*', cors(corsOptions));
+
+// Basic middleware
 app.use(logger('dev'));
 app.use(express.json());
 
@@ -38,6 +41,17 @@ app.use((req, res, next) => {
 // API Routes
 app.use('/api/users', require('./routes/api/users'));
 app.use('/api/projects', require('./routes/api/projects'));
+
+// Health check endpoint (useful for deployment)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
+});
 
 // Listener
 app.listen(port, () => console.log(`Express running on port ${port}`));
