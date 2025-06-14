@@ -6,8 +6,7 @@ const cors = require('cors');
 const port = process.env.PORT || 3001;
 const app = express();
 
-// Optimized CORS configuration
-// This now includes your deployed Vercel frontend URL and an explicit localhost:3000.
+// CORS configuration
 app.use(cors({
   origin: [
     'https://remofrontend22.vercel.app', // Your Vercel frontend
@@ -19,13 +18,22 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 // Middleware
 app.use(logger('dev'));
 app.use(express.json());
 
-// This middleware should come after express.json() and cors()
-// but before your API routes.
-app.use(require('./config/checkToken'));
+// Apply checkToken middleware conditionally - skip for login/signup routes
+app.use((req, res, next) => {
+  // Skip token check for login and signup routes
+  if (req.path === '/api/users/login' || req.path === '/api/users/signup' || req.path === '/api/users/register') {
+    return next();
+  }
+  // Apply token check for all other routes
+  return require('./config/checkToken')(req, res, next);
+});
 
 // API Routes
 app.use('/api/users', require('./routes/api/users'));
